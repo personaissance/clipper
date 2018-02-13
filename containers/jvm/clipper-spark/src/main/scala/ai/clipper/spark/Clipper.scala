@@ -53,7 +53,7 @@ object Clipper {
   val REPL_CLASS_DIR: String = "repl_classes"
   val CLIPPER_SPARK_CONTAINER_NAME = "clipper/spark-scala-container"
 
-  val DOCKER_NW: String = "clipper_nw"
+  val DOCKER_NW: String = "clipper_network"
   val CLIPPER_MANAGEMENT_PORT: Int = 1338
 
   val CLIPPER_DOCKER_LABEL: String = "ai.clipper.container.label";
@@ -175,7 +175,7 @@ object Clipper {
     val getDockerIPCommand = sudoCommand ++ Seq(
       "docker",
       "ps", "-aqf",
-      "ancestor=clipper/query_frontend",
+      "ancestor=clipper/query_frontend:develop",
       "|", "xargs") ++ sudoCommand ++ Seq("docker",
       "inspect",
       "--format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
@@ -219,11 +219,12 @@ object Clipper {
                                     hostModelDataPath: String): Unit = {
     val data = Map(
       "model_name" -> name,
-      "model_version" -> version,
+      "model_version" -> version.toString,
       "labels" -> labels,
       "input_type" -> "doubles",
       "container_name" -> CLIPPER_SPARK_CONTAINER_NAME,
-      "model_data_path" -> hostModelDataPath
+      "model_data_path" -> hostModelDataPath,
+      "batch_size" -> 1
     )
     val jsonData = write(data)
 
