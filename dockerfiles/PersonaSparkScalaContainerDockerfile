@@ -1,21 +1,38 @@
 # This ARG isn't used but prevents warnings in the build script
 ARG CODE_VERSION
-FROM openjdk:8-jdk
+#FROM openjdk:8-jdk
+FROM maven:3.5.2-jdk-8
+
+# vars for persona and clipper home dirs
+ARG PERSONA_PARENT=.
+ARG CLIPPER_HOME=./persona-clipper
+
+COPY ${CLIPPER_HOME}/containers/jvm/ /root/container/clipper
+COPY ${PERSONA_PARENT}/persona-ml /root/container/persona-ml
 
 # First set up maven
-ARG MAVEN_VERSION=3.5.0
-ARG SHA=beb91419245395bd69a4a6edad5ca3ec1a8b64e41457672dc687c173a495f034
-ARG BASE_URL=https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries
+#ARG MAVEN_VERSION=3.5.0
+#ARG SHA=beb91419245395bd69a4a6edad5ca3ec1a8b64e41457672dc687c173a495f034
+#ARG BASE_URL=https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries
 
 
 
-RUN mkdir -p /usr/share/maven /usr/share/maven/ref \
-  && curl -fsSL -o /tmp/apache-maven.tar.gz ${BASE_URL}/apache-maven-$MAVEN_VERSION-bin.tar.gz \
-  && echo "${SHA}  /tmp/apache-maven.tar.gz" | sha256sum -c - \
-  && tar -xzf /tmp/apache-maven.tar.gz -C /usr/share/maven --strip-components=1 \
-  && rm -f /tmp/apache-maven.tar.gz \
-  && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn \
-  && apt-get update \
+#RUN mkdir -p /usr/share/maven /usr/share/maven/ref \
+#  && curl -fsSL -o /tmp/apache-maven.tar.gz ${BASE_URL}/apache-maven-$MAVEN_VERSION-bin.tar.gz \
+#  && echo "${SHA}  /tmp/apache-maven.tar.gz" | sha256sum -c - \
+#  && tar -xzf /tmp/apache-maven.tar.gz -C /usr/share/maven --strip-components=1 \
+#  && rm -f /tmp/apache-maven.tar.gz \
+#  && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn \
+#  && apt-get update \
+#  && apt-get install -y libzmq5 libzmq3-dev git pkg-config libtool autoconf g++ make \
+#  && git clone https://github.com/zeromq/jzmq.git /root/jzmq \
+#  && cd /root/jzmq/jzmq-jni \
+#  && ./autogen.sh \
+#  && ./configure \
+#  && make \
+#  && make install
+
+RUN apt-get update \
   && apt-get install -y libzmq5 libzmq3-dev git pkg-config libtool autoconf g++ make \
   && git clone https://github.com/zeromq/jzmq.git /root/jzmq \
   && cd /root/jzmq/jzmq-jni \
@@ -24,28 +41,20 @@ RUN mkdir -p /usr/share/maven /usr/share/maven/ref \
   && make \
   && make install
 
+#ENV MAVEN_HOME /usr/share/maven
+#ENV MAVEN_CONFIG /root/.m2
 
-ENV MAVEN_HOME /usr/share/maven
-ENV MAVEN_CONFIG /root/.m2
-
-COPY ./containers/jvm/ /root/container
-COPY  download_release.sh /root/container/download_release.sh
 WORKDIR /root/container
 
-RUN mkdir -p /model \
-      && cd /root/container \
-      && mvn clean package -DskipTests
+RUN mkdir -p /model
+WORKDIR /root/container/clipper
+RUN mvn clean install -DskipTests
 
 ENV CLIPPER_MODEL_PATH=/model
-#RUN wget http://ftp.itu.edu.tr/Mirror/Apache/thrift/0.11.0/thrift-0.11.0.tar.gz
-#RUN tar -xzf thrift-0.11.0.tar.gz
-#WORKDIR thrift-0.11.0
-#RUN ./bootstrap.sh && ./configure && make && make install
-#WORKDIR /
 
-COPY persona-ml /root/container/persona-ml
+RUN ls -a /root/.m2
 
-RUN mvn package -f /root/container/persona-ml/pom.xml
+#RUN mvn clean package -f /root/container/persona-ml/pom.xml -DskipTests
 
 
-CMD ["java", "-Djava.library.path=/usr/local/lib", "-Xmx1024m", "-cp", "/root/container/persona-ml/examples/target/persona-examples-0.1.jar:/root/container/persona-ml/models/target/persona-models-0.1.jar:/root/container/persona-ml/spark/target/persona-spark-0.1.jar:/root/container/spark-container-impl/target/spark-container-impl-0.1.jar:/root/container/persona-ml/service/spark/target/persona-service-spark-0.1.jar","ai.clipper.spark.container.impl.ContainerMain"]
+#CMD ["java", "-Djava.library.path=/usr/local/lib", "-Xmx1024m", "-cp", "/root/container/persona-ml/examples/target/persona-examples-0.1.jar:/root/container/persona-ml/models/target/persona-models-0.1.jar:/root/container/persona-ml/spark/target/persona-spark-0.1.jar:/root/container/clipper/spark-container-impl/target/spark-container-impl-0.1.jar:/root/container/persona-ml/service/spark/target/persona-service-spark-0.1.jar","ai.clipper.spark.container.impl.ContainerMain"]
