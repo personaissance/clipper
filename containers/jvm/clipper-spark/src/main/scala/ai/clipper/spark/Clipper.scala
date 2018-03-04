@@ -145,6 +145,11 @@ object Clipper {
                                        version: Int,
                                        modelDataPath: String): Unit = {
     println(s"MODEL_DATA_PATH: $modelDataPath")
+    val dockerIpCommand = "docker ps -aqf ancestor=clipper/query_frontend:develop" #|
+      Seq("xargs", "docker", "inspect", "--format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'")
+
+    val dockerIp = dockerIpCommand.!!.stripLineEnd.stripPrefix("'").stripSuffix("'")
+
     val startContainerCmd = Seq(
       "docker",
       "run",
@@ -153,7 +158,7 @@ object Clipper {
       "-v", s"$modelDataPath:/model:ro",
       "-e", s"CLIPPER_MODEL_NAME=$name",
       "-e", s"CLIPPER_MODEL_VERSION=$version",
-      "-e", "CLIPPER_IP=query_frontend",
+      "-e", s"CLIPPER_IP=$dockerIp",
       "-e", "CLIPPER_INPUT_TYPE=doubles",
       "-l", s"$CLIPPER_DOCKER_LABEL",
       CLIPPER_SPARK_CONTAINER_NAME
@@ -171,25 +176,34 @@ object Clipper {
                                         sshKeyPath: String,
                                         dockerRequiresSudo: Boolean): Unit = {
 
+    val sshCommand = Seq("ssh",
+      "-o", "StrictHostKeyChecking=no",
+      "-i", s"$sshKeyPath",
+      s"$sshUserName@$clipperHost")
+
     val sudoCommand = if (dockerRequiresSudo) Seq("sudo") else Seq()
-    val getDockerIPCommand = sudoCommand ++ Seq(
+    val dockerIpCommand = (sshCommand ++ sudoCommand ++ Seq(
+      "docker",
+      "ps", "-aqf",
+      "ancestor=clipper/query_frontend::develop"
+    )) #| (Seq("xargs") ++ sudoCommand ++ Seq("docker",
+      "inspect",
+      "--format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
+    ))
+
+    /*val getDockerIPCommand = sudoCommand ++ Seq(
       "docker",
       "ps", "-aqf",
       "ancestor=clipper/query_frontend:develop",
       "|", "xargs") ++ sudoCommand ++ Seq("docker",
       "inspect",
       "--format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
-    )
+    )*/
 
 
 
-    val sshCommand = Seq("ssh",
-      "-o", "StrictHostKeyChecking=no",
-      "-i", s"$sshKeyPath",
-      s"$sshUserName@$clipperHost")
 
-    val dockerIpCommand = sshCommand ++ getDockerIPCommand
-    val dockerIp = dockerIpCommand.!!.stripLineEnd
+    val dockerIp = dockerIpCommand.!!.stripLineEnd.stripPrefix("'").stripSuffix("'")
     println(s"Docker IP: $dockerIp")
 
     val startContainerCmd = sudoCommand ++ Seq(
