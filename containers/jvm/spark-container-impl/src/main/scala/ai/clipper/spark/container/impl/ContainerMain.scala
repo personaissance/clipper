@@ -2,9 +2,9 @@ package ai.clipper.spark.container.impl
 
 import java.net.UnknownHostException
 
-import ai.clipper.container.data.DoubleVector
+import ai.clipper.container.data.{DoubleVector, SerializableString}
 import ai.clipper.rpc.RPC
-import ai.clipper.spark.{Clipper, SparkModelContainer}
+import ai.clipper.spark.{Clipper, NewSparkJsonModelContainer, SparkModelContainer}
 import org.apache.spark.{SparkConf, SparkContext}
 
 object ContainerMain {
@@ -31,8 +31,8 @@ object ContainerMain {
         val log = LogFactory.getLog("EXECUTOR-LOG:")
         log.warn("START EXECUTOR WARN LOG LEVEL")
       })
-    val container: SparkModelContainer = Clipper.loadSparkModel(sc, modelPath)
-    val parser = new DoubleVector.Parser
+    val container: NewSparkJsonModelContainer = Clipper.loadSparkModel(sc, modelPath)
+    val parser = new SerializableString.Parser
 
     while (true) {
       println("Starting Clipper Spark Container")

@@ -159,7 +159,7 @@ object Clipper {
       "-e", s"CLIPPER_MODEL_NAME=$name",
       "-e", s"CLIPPER_MODEL_VERSION=$version",
       "-e", s"CLIPPER_IP=$dockerIp",
-      "-e", "CLIPPER_INPUT_TYPE=doubles",
+      "-e", "CLIPPER_INPUT_TYPE=strings",
       "-l", s"$CLIPPER_DOCKER_LABEL",
       CLIPPER_SPARK_CONTAINER_NAME
     )
@@ -215,7 +215,7 @@ object Clipper {
       "-e", s"CLIPPER_MODEL_NAME=$name",
       "-e", s"CLIPPER_MODEL_VERSION=$version",
       "-e", s"CLIPPER_IP=$dockerIp",
-      "-e", "CLIPPER_INPUT_TYPE=doubles",
+      "-e", "CLIPPER_INPUT_TYPE=strings",
       "-l", s"$CLIPPER_DOCKER_LABEL",
       CLIPPER_SPARK_CONTAINER_NAME
     )
@@ -235,7 +235,7 @@ object Clipper {
       "model_name" -> name,
       "model_version" -> version.toString,
       "labels" -> labels,
-      "input_type" -> "doubles",
+      "input_type" -> "strings",
       "container_name" -> CLIPPER_SPARK_CONTAINER_NAME,
       "model_data_path" -> hostModelDataPath,
       "batch_size" -> 1
@@ -291,25 +291,11 @@ object Clipper {
     }
     val modelPath = Paths.get(basePath, MODEL_DIRECTORY).toString
     val modelType = model match {
-      case m: MLlibModel => {
-        m.save(sc, modelPath)
-        // Because I'm not sure how to do it in the type system, check that
-        // the container is of the right type
-        // NOTE: this test doesn't work from the REPL
-        try {
-          containerClass.newInstance.asInstanceOf[MLlibContainer]
-        } catch {
-          case e: ClassCastException => {
-            throw new IllegalArgumentException(
-              "Error: Container must be a subclass of MLlibContainer")
-          }
-        }
-        MLlibModelType
-      }
       case p: PipelineModel => {
         p.save(modelPath)
         // Because I'm not sure how to do it in the type system, check that
         // the container is of the right type
+/*
         try {
           containerClass.newInstance.asInstanceOf[PipelineModelContainer]
         } catch {
@@ -318,6 +304,7 @@ object Clipper {
               "Error: Container must be a subclass of PipelineModelContainer")
           }
         }
+*/
         PipelineModelType
       }
       case _ =>
@@ -360,7 +347,7 @@ object Clipper {
 
   private[clipper] def loadSparkModel(
       sc: SparkContext,
-      basePath: String): SparkModelContainer = {
+      basePath: String): NewSparkJsonModelContainer = {
     val confString = Files
       .readAllLines(Paths.get(basePath, CLIPPER_CONF_FILENAME),
                     Charset.defaultCharset())
@@ -372,32 +359,15 @@ object Clipper {
     println(s"Model path: $modelPath")
 
     conf.modelType match {
-      case MLlibModelType => {
-        val model = MLlibLoader.load(sc, modelPath)
-        try {
-          val container = classLoader
-            .loadClass(conf.className)
-            .newInstance()
-            .asInstanceOf[MLlibContainer]
-          container.init(sc, model)
-          container.asInstanceOf[SparkModelContainer]
-        } catch {
-          case e: Throwable => {
-            e.printStackTrace
-            throw e
-          }
-
-        }
-      }
       case PipelineModelType => {
         val model = PipelineModel.load(modelPath)
         try {
         val container = classLoader
           .loadClass(conf.className)
           .newInstance()
-          .asInstanceOf[PipelineModelContainer]
+          .asInstanceOf[PipelineModelJsonContainer]
         container.init(sc, model)
-        container.asInstanceOf[SparkModelContainer]
+        container.asInstanceOf[NewSparkJsonModelContainer]
         } catch {
           case e: Throwable => {
             e.printStackTrace

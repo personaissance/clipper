@@ -3,7 +3,7 @@ package ai.clipper.spark
 import java.util.ArrayList
 
 import ai.clipper.container.ClipperModel
-import ai.clipper.container.data.{DataType, DoubleVector, SerializableString}
+import ai.clipper.container.data.{DataType, DataVector, DoubleVector, SerializableString}
 import org.apache.spark.SparkContext
 import org.apache.spark.ml.PipelineModel
 import org.apache.spark.mllib.classification.{LogisticRegressionModel, NaiveBayesModel, SVMModel}
@@ -18,8 +18,12 @@ import org.json4s.jackson.JsonMethods._
 import scala.collection.JavaConversions._
 import scala.reflect.runtime.universe
 
-abstract class SparkModelContainer extends ClipperModel[DoubleVector] {
+abstract class NewSparkModelContainer[D<:DataVector[_], C, R] extends ClipperModel[D]{
+  def predict(x:List[C]): List[R]
+}
 
+
+abstract class NewSparkDoublesModelContainer extends NewSparkModelContainer[DoubleVector, Vector, Float]{
   override def getInputType : DataType = {
     DataType.Doubles
   }
@@ -28,9 +32,34 @@ abstract class SparkModelContainer extends ClipperModel[DoubleVector] {
     val inputs = inputVectors.map(x => Vectors.dense(new Array[Double](x.getData.remaining()))).toList
     new ArrayList(predict(inputs).map(x => new SerializableString(x.toString)))
   }
+}
 
+abstract class NewSparkJsonModelContainer extends NewSparkModelContainer[SerializableString, Map[String, Any], String]{
+
+  override def getInputType: DataType = DataType.Strings
+
+  final override def predict(inputVector: ArrayList[SerializableString]): ArrayList[SerializableString] = {
+    val jsons = inputVector.map { input =>
+      println(input.getData)
+      val jsonObj = parse(input.getData)
+      implicit val formats = org.json4s.DefaultFormats
+      jsonObj.extract[Map[String, Any]]
+    }.toList
+    new ArrayList(predict(jsons).map(new SerializableString(_)))
+  }
+}
+
+abstract class PipelineModelJsonContainer extends NewSparkJsonModelContainer {
+
+  def init(sc: SparkContext, model: PipelineModel): Unit
+
+  override def predict(x: List[Map[String, Any]]): List[String]
+}
+
+
+//abstract class SparkModelContainer extends ClipperModel[DoubleVector] {
+abstract class SparkModelContainer extends NewSparkDoublesModelContainer {
   def predict(x: List[Vector]): List[Float]
-
 }
 
 abstract class MLlibContainer extends SparkModelContainer {
