@@ -51,7 +51,7 @@ object Clipper {
   val CONTAINER_JAR_FILE: String = "container_source.jar"
   val MODEL_DIRECTORY: String = "model"
   val REPL_CLASS_DIR: String = "repl_classes"
-  val CLIPPER_SPARK_CONTAINER_NAME = "clipper/spark-scala-container"
+  val CLIPPER_SPARK_CONTAINER_NAME = "personatech/clipper-spark-scala-container"
 
   val DOCKER_NW: String = "clipper_network"
   val CLIPPER_MANAGEMENT_PORT: Int = 1338
