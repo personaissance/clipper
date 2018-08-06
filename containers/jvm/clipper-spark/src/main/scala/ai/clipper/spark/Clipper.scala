@@ -120,8 +120,10 @@ object Clipper {
             throw new ModelDeploymentError(err)
           }
         }
+        //TODO: Save model to anywhere
         copyModelDataToHost(clipperHost, basePath, hostDataPath, user, key)
         publishModelToClipper(clipperHost, name, version, labels, hostDataPath)
+        //TODO: No Docker run here
         startSparkContainerRemote(name,
                                   version,
                                   clipperHost,
